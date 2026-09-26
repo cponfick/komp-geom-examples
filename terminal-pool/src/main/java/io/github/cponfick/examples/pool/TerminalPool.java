@@ -38,7 +38,9 @@ public final class TerminalPool {
             new Seg2(new Vec2(LEFT, BOTTOM), new Vec2(LEFT, TOP)));
     private final TablePanel panel = new TablePanel();
     private double aim = 0;
-    private double shotPower = .5;
+    private double shotPower = .1;
+    private long chargeStarted;
+    private boolean charging;
     private int score;
     private int shots;
     private int currentPlayer = 1;
@@ -98,7 +100,8 @@ public final class TerminalPool {
             }
         }
         aim = 0;
-        shotPower = .5;
+        shotPower = .1;
+        charging = false;
         score = 0;
         shots = 0;
         currentPlayer = 1;
@@ -128,6 +131,21 @@ public final class TerminalPool {
         return true;
     }
 
+    private void startCharging() {
+        if (stopped() && !gameOver && !charging) {
+            charging = true;
+            chargeStarted = System.nanoTime();
+            shotPower = .1;
+        }
+    }
+
+    private void releaseShot() {
+        if (!charging) return;
+        shotPower = Math.min(1, Math.max(.1, (System.nanoTime() - chargeStarted) / 1_500_000_000.0));
+        charging = false;
+        shoot();
+    }
+
     private void shoot() {
         if (!stopped() || gameOver) return;
         Ball cue = balls.get(0);
@@ -142,6 +160,9 @@ public final class TerminalPool {
     }
 
     private void update(double dt) {
+        if (charging) {
+            shotPower = Math.min(1, Math.max(.1, (System.nanoTime() - chargeStarted) / 1_500_000_000.0));
+        }
         for (Ball ball : balls) {
             if (!ball.active) continue;
             ball.position = ball.position.plus(ball.velocity.times(dt));
@@ -222,33 +243,13 @@ public final class TerminalPool {
         shotInProgress = false;
         Ball cue = balls.get(0);
         boolean eightPocketed = pocketedThisShot.contains(8);
-        boolean foul = cueScratch || firstHit == null;
-        int group = playerGroup[currentPlayer];
-        if (group != 0 && firstHit != null && groupOf(firstHit.number) != group) foul = true;
-        if (breakShot && cueScratch) foul = true;
-
         if (eightPocketed) {
-            boolean legalEight = group != 0 && remainingGroupBalls(group) == 0 && !foul;
             gameOver = true;
-            message = legalEight ? "Player " + currentPlayer + " wins! Press R to play again."
-                    : "Player " + currentPlayer + " loses — the 8-ball was early. Press R.";
-            return;
-        }
-        if (breakShot) breakShot = false;
-        if (foul) {
-            currentPlayer = otherPlayer();
-            ballInHand = true;
-            message = "Foul! Player " + currentPlayer + " has ball in hand.";
+            message = remainingObjectBalls() == 0
+                    ? "You win! The 8-ball was last. Press R to play again."
+                    : "The 8-ball was pocketed too early. Press R to try again.";
         } else {
-            if (group == 0) assignGroups();
-            boolean ownBallPocketed = pocketedThisShot.stream().anyMatch(n -> playerGroup[currentPlayer] == groupOf(n));
-            if (!ownBallPocketed) {
-                currentPlayer = otherPlayer();
-                message = "Player " + currentPlayer + "'s turn.";
-            } else {
-                message = "Player " + currentPlayer + " continues.";
-            }
-            ballInHand = false;
+            message = cueScratch ? "Scratch! The cue ball has been reset." : "Take your next shot.";
         }
         if (cueScratch) {
             cue.active = true;
@@ -256,6 +257,12 @@ public final class TerminalPool {
             cue.velocity = new Vec2(0, 0);
         }
         pocketedThisShot.clear();
+    }
+
+    private int remainingObjectBalls() {
+        int count = 0;
+        for (Ball ball : balls) if (ball.active && !ball.cue && ball.number != 8) count++;
+        return count;
     }
 
     private int otherPlayer() { return currentPlayer == 1 ? 2 : 1; }
@@ -301,27 +308,24 @@ public final class TerminalPool {
                 }
             });
             addMouseListener(new MouseAdapter() {
-                @Override public void mousePressed(MouseEvent event) { shoot(); requestFocusInWindow(); }
+                @Override public void mousePressed(MouseEvent event) {
+                    requestFocusInWindow();
+                    startCharging();
+                }
+                @Override public void mouseReleased(MouseEvent event) { releaseShot(); }
             });
             addKeyListener(new KeyAdapter() {
                 @Override public void keyPressed(KeyEvent event) {
-                    if (event.getKeyCode() == KeyEvent.VK_SPACE || event.getKeyCode() == KeyEvent.VK_ENTER) shoot();
+                    if (event.getKeyCode() == KeyEvent.VK_SPACE || event.getKeyCode() == KeyEvent.VK_ENTER) startCharging();
                     else if (event.getKeyCode() == KeyEvent.VK_R) reset();
                     else if (event.getKeyCode() == KeyEvent.VK_LEFT || event.getKeyCode() == KeyEvent.VK_A) aim -= .08;
                     else if (event.getKeyCode() == KeyEvent.VK_RIGHT || event.getKeyCode() == KeyEvent.VK_D) aim += .08;
-                    else if (event.getKeyCode() == KeyEvent.VK_UP || event.getKeyCode() == KeyEvent.VK_W) adjustPower(.05);
-                    else if (event.getKeyCode() == KeyEvent.VK_DOWN || event.getKeyCode() == KeyEvent.VK_S) adjustPower(-.05);
                     else if (event.getKeyCode() == KeyEvent.VK_ESCAPE) System.exit(0);
                 }
+                @Override public void keyReleased(KeyEvent event) {
+                    if (event.getKeyCode() == KeyEvent.VK_SPACE || event.getKeyCode() == KeyEvent.VK_ENTER) releaseShot();
+                }
             });
-            addMouseWheelListener(event -> adjustPower(-event.getPreciseWheelRotation() * .05));
-        }
-
-        private void adjustPower(double amount) {
-            if (stopped() && !gameOver) {
-                shotPower = Math.max(0, Math.min(1, shotPower + amount));
-                repaint();
-            }
         }
 
         @Override protected void paintComponent(Graphics graphics) {
@@ -332,13 +336,11 @@ public final class TerminalPool {
             g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 22));
             g.drawString("KOMP-GEOM POOL", 70, 42);
             g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 16));
-            String p1 = playerGroup[1] == 0 ? "open" : playerGroup[1] == 1 ? "solids" : "stripes";
-            String p2 = playerGroup[2] == 0 ? "open" : playerGroup[2] == 1 ? "solids" : "stripes";
-            g.drawString("Player " + currentPlayer + " (P1: " + p1 + ", P2: " + p2 + ")    Score: " + score + "    Shots: " + shots, 70, 70);
+            g.drawString("Solo game    Score: " + score + "    Shots: " + shots, 70, 70);
             g.setColor(new Color(225, 235, 220));
             g.drawString(message + (ballInHand ? "  Place the cue ball with the mouse." : ""), 70, 88);
             g.setColor(Color.LIGHT_GRAY);
-            g.drawString("Power", 760, 48);
+            g.drawString("Hold to charge", 730, 48);
             g.setColor(new Color(50, 50, 55));
             g.fillRect(815, 34, 100, 14);
             g.setColor(new Color(238, 173, 44));

@@ -18,18 +18,19 @@ java -jar build/libs/terminal-pool-0.1.0.jar
 ## Controls
 
 - Move the mouse to aim
-- Use the mouse wheel or `W`/Up Arrow and `S`/Down Arrow to adjust shot power
-- Click or press `Space`/`Enter` to shoot
-- Press `A`/Left Arrow and `D`/Right Arrow for fine aiming
+- Move the mouse to aim
+- Hold the mouse button, then release to charge and shoot
+- Hold `Space` or `Enter`, then release to charge and shoot
+- Press `R` to reset
 - Press `R` to reset
 - Press `Escape` to quit
 
-## Rules implemented
+## Rules
 
-- Two-player turns with automatic switching
-- Groups are assigned after the first legal pocket (solids or stripes)
-- Players must hit their own group first
-- Pocketing the cue ball is a foul and gives the other player ball in hand
-- The eight ball can only be pocketed after the player's group is cleared
-- Pocketing the eight ball early loses the game
-- A legal pocketed shot lets the current player continue
+This is a deliberately simple solo demonstration:
+
+- Pocket any object ball in any order.
+- The eight ball must be the last object ball pocketed.
+- Pocketing the eight ball early ends the game.
+- Scratching resets the cue ball without adding a penalty.
+- Press `R` to start over.
