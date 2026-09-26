@@ -2,7 +2,7 @@
 
 A small Swing pool game demonstrating Komp-Geom's `Vec2` and `Seg2` types. It uses a standard rack of 15 numbered object balls: seven solids, the eight ball, and seven stripes. Aim with the mouse and click to shoot, or use the keyboard controls.
 
-![Komp-Geom Pool](docs/images/terminal-pool.png)
+![Komp-Geom Pool](docs/images/swing-pool.png)
 
 ## Run from source
 
@@ -14,7 +14,7 @@ A small Swing pool game demonstrating Komp-Geom's `Vec2` and `Seg2` types. It us
 
 ```bash
 ./gradlew jar
-java -jar build/libs/terminal-pool-0.1.0.jar
+java -jar build/libs/swing-pool-0.1.0.jar
 ```
 
 ## Controls
