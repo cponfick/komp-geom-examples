@@ -1,0 +1,29 @@
+# Gradle
+.gradle/
+**/build/
+
+# Compiled Java/Kotlin output
+*.class
+out/
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+
+# Runtime and build logs
+*.log
+hs_err_pid*
+replay_pid*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local environment/configuration
+.env
+.env.*
+!.env.example

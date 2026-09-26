@@ -1,0 +1,24 @@
+plugins {
+    application
+}
+
+group = "io.github.cponfick.examples"
+version = "0.1.0"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation("io.github.cponfick:komp-geom-jvm:0.4.0-rc7")
+}
+
+application {
+    mainClass = "io.github.cponfick.examples.donut.SpinningDonut"
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
