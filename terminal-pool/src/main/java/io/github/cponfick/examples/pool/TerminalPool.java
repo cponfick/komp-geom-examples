@@ -339,15 +339,6 @@ public final class TerminalPool {
             g.drawString("Solo game    Score: " + score + "    Shots: " + shots, 70, 70);
             g.setColor(new Color(225, 235, 220));
             g.drawString(message + (ballInHand ? "  Place the cue ball with the mouse." : ""), 70, 88);
-            g.setColor(Color.LIGHT_GRAY);
-            g.drawString("Hold to charge", 730, 48);
-            g.setColor(new Color(50, 50, 55));
-            g.fillRect(815, 34, 100, 14);
-            g.setColor(new Color(238, 173, 44));
-            g.fillRect(815, 34, (int) (100 * shotPower), 14);
-            g.setColor(Color.WHITE);
-            g.drawRect(815, 34, 100, 14);
-
             g.setColor(new Color(112, 65, 31));
             g.fillRoundRect((int) LEFT - 24, (int) TOP - 24, (int) (RIGHT - LEFT) + 48, (int) (BOTTOM - TOP) + 48, 30, 30);
             g.setColor(new Color(31, 126, 73));

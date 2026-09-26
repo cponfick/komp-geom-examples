@@ -21,6 +21,7 @@ java -jar build/libs/terminal-pool-0.1.0.jar
 - Move the mouse to aim
 - Hold the mouse button, then release to charge and shoot
 - Hold `Space` or `Enter`, then release to charge and shoot
+- The aiming guide grows as shot power increases
 - Press `R` to reset
 - Press `R` to reset
 - Press `Escape` to quit
