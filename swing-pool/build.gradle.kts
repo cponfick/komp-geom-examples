@@ -14,7 +14,7 @@ dependencies {
 }
 
 application {
-    mainClass = "io.github.cponfick.examples.pool.TerminalPool"
+    mainClass = "io.github.cponfick.examples.pool.SwingPool"
 }
 
 //tasks.jar {

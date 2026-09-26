@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** A small Swing pool game using Komp-Geom vectors and segments. */
-public final class TerminalPool {
+public final class SwingPool {
     private static final int WIDTH = 980;
     private static final int HEIGHT = 640;
     private static final double LEFT = 70, RIGHT = 910, TOP = 100, BOTTOM = 540;
@@ -54,13 +54,13 @@ public final class TerminalPool {
     private final List<Integer> pocketedThisShot = new ArrayList<>();
     private String message = "Break the rack!";
 
-    private TerminalPool() {
+    private SwingPool() {
         reset();
     }
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
-            TerminalPool game = new TerminalPool();
+            SwingPool game = new SwingPool();
             JFrame frame = new JFrame("Komp-Geom Pool");
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             frame.setContentPane(game.panel);
