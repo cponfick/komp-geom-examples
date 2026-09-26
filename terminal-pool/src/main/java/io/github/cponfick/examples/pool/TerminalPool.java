@@ -40,6 +40,16 @@ public final class TerminalPool {
     private double aim = 0;
     private int score;
     private int shots;
+    private int currentPlayer = 1;
+    private final int[] playerGroup = new int[3]; // 0=open, 1=solids, 2=stripes
+    private boolean breakShot = true;
+    private boolean ballInHand;
+    private boolean shotInProgress;
+    private boolean gameOver;
+    private boolean cueScratch;
+    private Ball firstHit;
+    private final List<Integer> pocketedThisShot = new ArrayList<>();
+    private String message = "Break the rack!";
 
     private TerminalPool() {
         reset();
@@ -68,17 +78,47 @@ public final class TerminalPool {
 
     private void reset() {
         balls.clear();
-        balls.add(new Ball(new Vec2(205, 320), Color.WHITE, true));
-        Color[] colors = {Color.YELLOW, Color.RED, Color.BLUE, Color.ORANGE, Color.MAGENTA, Color.CYAN};
-        int index = 0;
-        for (int row = 0; row < 3; row++) {
-            for (int column = 0; column <= row; column++) {
-                balls.add(new Ball(new Vec2(690 + row * 27, 307 + column * 27 - row * 13.5), colors[index++], false));
+        balls.add(new Ball(new Vec2(205, 320), 0, Color.WHITE, false));
+        // A standard rack: seven solids, the eight ball, and seven stripes.
+        // A conventional WPA-style pattern: 1 at the apex, 8 in the
+        // middle of the third row, and unlike groups in the rear corners.
+        int[][] rack = {
+                {1},
+                {9, 2},
+                {3, 8, 10},
+                {11, 4, 12, 5},
+                {13, 6, 14, 15, 7}
+        };
+        for (int row = 0; row < rack.length; row++) {
+            for (int column = 0; column < rack[row].length; column++) {
+                int number = rack[row][column];
+                balls.add(new Ball(new Vec2(690 + row * 27, 320 + column * 27 - row * 13.5),
+                        number, ballColor(number), false));
             }
         }
         aim = 0;
         score = 0;
         shots = 0;
+        currentPlayer = 1;
+        playerGroup[1] = playerGroup[2] = 0;
+        breakShot = true;
+        ballInHand = false;
+        shotInProgress = false;
+        gameOver = false;
+        message = "Break the rack!";
+    }
+
+    private Color ballColor(int number) {
+        return switch ((number - 1) % 8) {
+            case 0 -> Color.YELLOW;
+            case 1 -> Color.BLUE;
+            case 2 -> Color.RED;
+            case 3 -> Color.MAGENTA;
+            case 4 -> Color.ORANGE;
+            case 5 -> Color.GREEN;
+            case 6 -> Color.RED.darker();
+            default -> Color.BLACK;
+        };
     }
 
     private boolean stopped() {
@@ -87,9 +127,15 @@ public final class TerminalPool {
     }
 
     private void shoot() {
-        if (!stopped()) return;
-        balls.get(0).velocity = new Vec2(Math.cos(aim), Math.sin(aim)).times(650);
+        if (!stopped() || gameOver) return;
+        Ball cue = balls.get(0);
+        cue.active = true;
+        cue.velocity = new Vec2(Math.cos(aim), Math.sin(aim)).times(650);
         shots++;
+        shotInProgress = true;
+        cueScratch = false;
+        firstHit = null;
+        pocketedThisShot.clear();
     }
 
     private void update(double dt) {
@@ -104,6 +150,7 @@ public final class TerminalPool {
         for (int i = 0; i < balls.size(); i++) {
             for (int j = i + 1; j < balls.size(); j++) collide(balls.get(i), balls.get(j));
         }
+        if (shotInProgress && stopped()) resolveShot();
     }
 
     private void bounceOffRails(Ball ball) {
@@ -134,6 +181,10 @@ public final class TerminalPool {
         double distance = delta.norm();
         if (distance == 0 || distance >= BALL_RADIUS * 2) return;
         Vec2 normal = delta.times(1 / distance);
+        if (shotInProgress && firstHit == null) {
+            if (a.cue && !b.cue) firstHit = b;
+            else if (b.cue && !a.cue) firstHit = a;
+        }
         double relativeSpeed = b.velocity.minus(a.velocity).dot(normal);
         if (relativeSpeed >= 0) return;
         Vec2 impulse = normal.times(relativeSpeed);
@@ -152,15 +203,77 @@ public final class TerminalPool {
     }
 
     private void pocket(Ball ball) {
+        if (!ball.active) return;
         ball.active = false;
         ball.velocity = new Vec2(0, 0);
         if (ball.cue) {
-            ball.active = true;
-            ball.position = new Vec2(205, 320);
-            score = Math.max(0, score - 25);
+            cueScratch = true;
         } else {
+            pocketedThisShot.add(ball.number);
             score += 100;
         }
+    }
+
+    private void resolveShot() {
+        if (!shotInProgress) return;
+        shotInProgress = false;
+        Ball cue = balls.get(0);
+        boolean eightPocketed = pocketedThisShot.contains(8);
+        boolean foul = cueScratch || firstHit == null;
+        int group = playerGroup[currentPlayer];
+        if (group != 0 && firstHit != null && groupOf(firstHit.number) != group) foul = true;
+        if (breakShot && cueScratch) foul = true;
+
+        if (eightPocketed) {
+            boolean legalEight = group != 0 && remainingGroupBalls(group) == 0 && !foul;
+            gameOver = true;
+            message = legalEight ? "Player " + currentPlayer + " wins! Press R to play again."
+                    : "Player " + currentPlayer + " loses — the 8-ball was early. Press R.";
+            return;
+        }
+        if (breakShot) breakShot = false;
+        if (foul) {
+            currentPlayer = otherPlayer();
+            ballInHand = true;
+            message = "Foul! Player " + currentPlayer + " has ball in hand.";
+        } else {
+            if (group == 0) assignGroups();
+            boolean ownBallPocketed = pocketedThisShot.stream().anyMatch(n -> playerGroup[currentPlayer] == groupOf(n));
+            if (!ownBallPocketed) {
+                currentPlayer = otherPlayer();
+                message = "Player " + currentPlayer + "'s turn.";
+            } else {
+                message = "Player " + currentPlayer + " continues.";
+            }
+            ballInHand = false;
+        }
+        if (cueScratch) {
+            cue.active = true;
+            cue.position = new Vec2(205, 320);
+            cue.velocity = new Vec2(0, 0);
+        }
+        pocketedThisShot.clear();
+    }
+
+    private int otherPlayer() { return currentPlayer == 1 ? 2 : 1; }
+
+    private int groupOf(int number) { return number >= 9 ? 2 : 1; }
+
+    private void assignGroups() {
+        for (int number : pocketedThisShot) {
+            if (number == 8) continue;
+            int group = groupOf(number);
+            playerGroup[currentPlayer] = group;
+            playerGroup[otherPlayer()] = 3 - group;
+            message = "Player " + currentPlayer + " has " + (group == 1 ? "solids" : "stripes") + ".";
+            return;
+        }
+    }
+
+    private int remainingGroupBalls(int group) {
+        int count = 0;
+        for (Ball ball : balls) if (ball.active && !ball.cue && groupOf(ball.number) == group) count++;
+        return count;
     }
 
     private double[][] pockets() {
@@ -175,8 +288,13 @@ public final class TerminalPool {
             setFocusable(true);
             addMouseMotionListener(new MouseAdapter() {
                 @Override public void mouseMoved(MouseEvent event) {
-                    if (stopped()) aim = Math.atan2(event.getY() - balls.get(0).position.getY(),
-                            event.getX() - balls.get(0).position.getX());
+                    Ball cue = balls.get(0);
+                    if (stopped() && ballInHand) {
+                        cue.position = new Vec2(Math.max(LEFT + BALL_RADIUS, Math.min(RIGHT - BALL_RADIUS, event.getX())),
+                                Math.max(TOP + BALL_RADIUS, Math.min(BOTTOM - BALL_RADIUS, event.getY())));
+                    }
+                    if (stopped()) aim = Math.atan2(event.getY() - cue.position.getY(),
+                            event.getX() - cue.position.getX());
                 }
             });
             addMouseListener(new MouseAdapter() {
@@ -201,7 +319,11 @@ public final class TerminalPool {
             g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 22));
             g.drawString("KOMP-GEOM POOL", 70, 42);
             g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 16));
-            g.drawString("Score: " + score + "    Shots: " + shots + "    Move mouse to aim • Click or Space to shoot • R to reset", 70, 70);
+            String p1 = playerGroup[1] == 0 ? "open" : playerGroup[1] == 1 ? "solids" : "stripes";
+            String p2 = playerGroup[2] == 0 ? "open" : playerGroup[2] == 1 ? "solids" : "stripes";
+            g.drawString("Player " + currentPlayer + " (P1: " + p1 + ", P2: " + p2 + ")    Score: " + score + "    Shots: " + shots, 70, 70);
+            g.setColor(new Color(225, 235, 220));
+            g.drawString(message + (ballInHand ? "  Place the cue ball with the mouse." : ""), 70, 88);
 
             g.setColor(new Color(112, 65, 31));
             g.fillRoundRect((int) LEFT - 24, (int) TOP - 24, (int) (RIGHT - LEFT) + 48, (int) (BOTTOM - TOP) + 48, 30, 30);
@@ -211,7 +333,7 @@ public final class TerminalPool {
                 g.setColor(Color.BLACK);
                 g.fillOval((int) pocket[0] - 18, (int) pocket[1] - 18, 36, 36);
             }
-            if (stopped()) drawAim(g);
+            if (stopped() && !gameOver) drawAim(g);
             for (Ball ball : balls) drawBall(g, ball);
             g.dispose();
         }
@@ -231,22 +353,41 @@ public final class TerminalPool {
             int y = (int) Math.round(ball.position.getY() - BALL_RADIUS);
             g.setColor(new Color(0, 0, 0, 80));
             g.fillOval(x + 3, y + 4, (int) BALL_RADIUS * 2, (int) BALL_RADIUS * 2);
-            g.setColor(ball.color);
-            g.fillOval(x, y, (int) BALL_RADIUS * 2, (int) BALL_RADIUS * 2);
+            if (ball.number >= 9) {
+                g.setColor(Color.WHITE);
+                g.fillOval(x, y, (int) BALL_RADIUS * 2, (int) BALL_RADIUS * 2);
+                g.setColor(ball.color);
+                g.fillRect(x, y + 7, (int) BALL_RADIUS * 2, 12);
+            } else {
+                g.setColor(ball.color);
+                g.fillOval(x, y, (int) BALL_RADIUS * 2, (int) BALL_RADIUS * 2);
+            }
             g.setColor(Color.WHITE);
             g.drawOval(x, y, (int) BALL_RADIUS * 2, (int) BALL_RADIUS * 2);
+            if (ball.number > 0) {
+                g.setColor(ball.number == 8 ? Color.WHITE : Color.BLACK);
+                g.fillOval(x + 6, y + 6, 14, 14);
+                g.setColor(ball.number == 8 ? Color.BLACK : Color.WHITE);
+                g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 10));
+                String label = Integer.toString(ball.number);
+                int labelWidth = g.getFontMetrics().stringWidth(label);
+                g.drawString(label, (int) ball.position.getX() - labelWidth / 2,
+                        (int) ball.position.getY() + 4); 
+            }
         }
     }
 
     private static final class Ball {
         Vec2 position;
         Vec2 velocity = new Vec2(0, 0);
+        final int number;
         final Color color;
         final boolean cue;
         boolean active = true;
 
-        Ball(Vec2 position, Color color, boolean cue) {
+        Ball(Vec2 position, int number, Color color, boolean cue) {
             this.position = position;
+            this.number = number;
             this.color = color;
             this.cue = cue;
         }
