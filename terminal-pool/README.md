@@ -18,6 +18,7 @@ java -jar build/libs/terminal-pool-0.1.0.jar
 ## Controls
 
 - Move the mouse to aim
+- Use the mouse wheel or `W`/Up Arrow and `S`/Down Arrow to adjust shot power
 - Click or press `Space`/`Enter` to shoot
 - Press `A`/Left Arrow and `D`/Right Arrow for fine aiming
 - Press `R` to reset

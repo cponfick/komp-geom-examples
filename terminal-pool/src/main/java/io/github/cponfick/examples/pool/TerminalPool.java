@@ -38,6 +38,7 @@ public final class TerminalPool {
             new Seg2(new Vec2(LEFT, BOTTOM), new Vec2(LEFT, TOP)));
     private final TablePanel panel = new TablePanel();
     private double aim = 0;
+    private double shotPower = .5;
     private int score;
     private int shots;
     private int currentPlayer = 1;
@@ -97,6 +98,7 @@ public final class TerminalPool {
             }
         }
         aim = 0;
+        shotPower = .5;
         score = 0;
         shots = 0;
         currentPlayer = 1;
@@ -130,7 +132,8 @@ public final class TerminalPool {
         if (!stopped() || gameOver) return;
         Ball cue = balls.get(0);
         cue.active = true;
-        cue.velocity = new Vec2(Math.cos(aim), Math.sin(aim)).times(650);
+        double speed = 250 + shotPower * 900;
+        cue.velocity = new Vec2(Math.cos(aim), Math.sin(aim)).times(speed);
         shots++;
         shotInProgress = true;
         cueScratch = false;
@@ -306,9 +309,19 @@ public final class TerminalPool {
                     else if (event.getKeyCode() == KeyEvent.VK_R) reset();
                     else if (event.getKeyCode() == KeyEvent.VK_LEFT || event.getKeyCode() == KeyEvent.VK_A) aim -= .08;
                     else if (event.getKeyCode() == KeyEvent.VK_RIGHT || event.getKeyCode() == KeyEvent.VK_D) aim += .08;
+                    else if (event.getKeyCode() == KeyEvent.VK_UP || event.getKeyCode() == KeyEvent.VK_W) adjustPower(.05);
+                    else if (event.getKeyCode() == KeyEvent.VK_DOWN || event.getKeyCode() == KeyEvent.VK_S) adjustPower(-.05);
                     else if (event.getKeyCode() == KeyEvent.VK_ESCAPE) System.exit(0);
                 }
             });
+            addMouseWheelListener(event -> adjustPower(-event.getPreciseWheelRotation() * .05));
+        }
+
+        private void adjustPower(double amount) {
+            if (stopped() && !gameOver) {
+                shotPower = Math.max(0, Math.min(1, shotPower + amount));
+                repaint();
+            }
         }
 
         @Override protected void paintComponent(Graphics graphics) {
@@ -324,6 +337,14 @@ public final class TerminalPool {
             g.drawString("Player " + currentPlayer + " (P1: " + p1 + ", P2: " + p2 + ")    Score: " + score + "    Shots: " + shots, 70, 70);
             g.setColor(new Color(225, 235, 220));
             g.drawString(message + (ballInHand ? "  Place the cue ball with the mouse." : ""), 70, 88);
+            g.setColor(Color.LIGHT_GRAY);
+            g.drawString("Power", 760, 48);
+            g.setColor(new Color(50, 50, 55));
+            g.fillRect(815, 34, 100, 14);
+            g.setColor(new Color(238, 173, 44));
+            g.fillRect(815, 34, (int) (100 * shotPower), 14);
+            g.setColor(Color.WHITE);
+            g.drawRect(815, 34, 100, 14);
 
             g.setColor(new Color(112, 65, 31));
             g.fillRoundRect((int) LEFT - 24, (int) TOP - 24, (int) (RIGHT - LEFT) + 48, (int) (BOTTOM - TOP) + 48, 30, 30);
@@ -342,9 +363,10 @@ public final class TerminalPool {
             Ball cue = balls.get(0);
             g.setColor(new Color(255, 255, 255, 150));
             g.setStroke(new BasicStroke(2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            double guideLength = 100 + shotPower * 300;
             g.drawLine((int) cue.position.getX(), (int) cue.position.getY(),
-                    (int) (cue.position.getX() + Math.cos(aim) * 250),
-                    (int) (cue.position.getY() + Math.sin(aim) * 250));
+                    (int) (cue.position.getX() + Math.cos(aim) * guideLength),
+                    (int) (cue.position.getY() + Math.sin(aim) * guideLength));
         }
 
         private void drawBall(Graphics2D g, Ball ball) {
