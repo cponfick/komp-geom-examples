@@ -10,7 +10,7 @@ repositories {
 }
 
 dependencies {
-    implementation("io.github.cponfick:komp-geom-jvm:0.4.0-rc7")
+    implementation("io.github.cponfick:komp-geom-jvm:0.5.0")
 }
 
 application {

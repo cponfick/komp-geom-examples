@@ -10,23 +10,12 @@ repositories {
 }
 
 dependencies {
-    implementation("io.github.cponfick:komp-geom-jvm:0.4.0-rc7")
+    implementation("io.github.cponfick:komp-geom-jvm:0.5.0")
 }
 
 application {
     mainClass = "io.github.cponfick.examples.pool.SwingPool"
 }
-
-//tasks.jar {
-//    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-//    from(configurations.runtimeClasspath.get().map { dependency ->
-//        if (dependency.isDirectory) dependency else zipTree(dependency)
-//    })
-//    exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
-//    manifest {
-//        attributes["Main-Class"] = application.mainClass.get()
-//    }
-//}
 
 java {
     toolchain {
